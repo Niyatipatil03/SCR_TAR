@@ -136,10 +136,8 @@ def compute_vsn_date(vsn):
 if os.path.exists(COMPILED_FILE):
     compiled_df = pd.read_excel(COMPILED_FILE, engine="openpyxl")
     if "File_Date" in compiled_df.columns:
-        max_file_date = (
-            pd.to_datetime(compiled_df["File_Date"], errors="coerce")
-            .dt.date.max()
-        )
+        _fd = pd.to_datetime(compiled_df["File_Date"], errors="coerce").dropna()
+        max_file_date = _fd.dt.date.max() if not _fd.empty else None
     else:
         max_file_date = None
 else:

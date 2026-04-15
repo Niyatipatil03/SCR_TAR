@@ -238,23 +238,23 @@ def main():
     # ── Type detection ──
     df["Type"] = df[REPORT_COL].apply(detect_type)
 
-    # ── Dynamic VSN year = current calendar year ──
-    current_year = date.today().year        # e.g. 2026
+    # ── VSN years to include ──
+    VSN_YEARS = [2025, 2026]
 
     # ── Target date = YESTERDAY only ──
     target_date = date.today() - timedelta(days=1)
 
     # ── Apply filters ──
     filtered = df[
-        (df[DATE_PARSED]    == target_date)    &
-        (df[DAYS_COL]       <= 210)            &
-        (df[VSN_DATE_COL].dt.year == current_year)
+        (df[DATE_PARSED]              == target_date)    &
+        (df[DAYS_COL]                 <= 210)            &
+        (df[VSN_DATE_COL].dt.year.isin(VSN_YEARS))
     ].copy()
 
     if filtered.empty:
         print(
             f"ℹ️  No data for {target_date} "
-            f"(VSN year {current_year}, Days ≤ 210). Mail NOT sent."
+            f"(VSN years {VSN_YEARS}, Days ≤ 210). Mail NOT sent."
         )
         return
 
@@ -329,7 +329,7 @@ def main():
 <br>
 <p style="font-size:9pt;color:#666666;">
   Filters applied &mdash; Created Date: {target_str} &nbsp;|&nbsp;
-  VSN Year: {current_year} &nbsp;|&nbsp; Days &le; 210
+  VSN Year: {", ".join(str(y) for y in VSN_YEARS)} &nbsp;|&nbsp; Days &le; 210
 </p>
 
 </body>

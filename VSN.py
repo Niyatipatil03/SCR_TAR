@@ -92,11 +92,31 @@ def extract_date_from_filename(fname):
     return None
 
 
+def compute_vsn_year(vsn):
+    """1st character of Vehicle Sr No → calendar year.  e.g. S→2025, T→2026"""
+    try:
+        return VSN_YEAR_MAP.get(str(vsn).strip().upper()[0])
+    except Exception:
+        return None
+
+
+def compute_vsn_month(vsn):
+    """3rd character of Vehicle Sr No → month number.  e.g. E→5 (May)"""
+    try:
+        vsn = str(vsn).strip().upper()
+        if len(vsn) >= 3:
+            return VSN_MONTH_MAP.get(vsn[2])
+    except Exception:
+        pass
+    return None
+
+
 def compute_vsn_date(vsn):
     """
-    Extract manufacture year + month from Vehicle Sr No.
-    Format assumption: char[0] = year code, char[2] = month code.
-    e.g. T2B... → T=2026, B=Feb → 2026-02-01
+    Derive manufacture date from Vehicle Sr No.
+      char[0] = year code  (S=2025, T=2026 …)
+      char[2] = month code (A=Jan, B=Feb, E=May …)
+    e.g. S2E90733 → S=2025, E=May → 2025-05-01
     Returns pd.Timestamp or NaT.
     """
     try:
@@ -160,16 +180,20 @@ def process_folder(folder, folder_name):
         df.drop(columns=[c for c in drop_list if c in df.columns],
                 inplace=True, errors="ignore")
 
-        # ---- Ensure VSN Date column ----
-        if "VSN Date" not in df.columns and "Vehicle Sr No" in df.columns:
-            df["VSN Date"] = df["Vehicle Sr No"].apply(compute_vsn_date)
+        # ---- Derive VSN Year, VSN Month, VSN Date from Vehicle Sr No ----
+        if "Vehicle Sr No" in df.columns:
+            if "VSN Year" not in df.columns:
+                df["VSN Year"] = df["Vehicle Sr No"].apply(compute_vsn_year)
+            if "VSN Month" not in df.columns:
+                df["VSN Month"] = df["Vehicle Sr No"].apply(compute_vsn_month)
+            if "VSN Date" not in df.columns:
+                df["VSN Date"] = df["Vehicle Sr No"].apply(compute_vsn_date)
         df["VSN Date"] = pd.to_datetime(df.get("VSN Date"), errors="coerce")
 
-        # ---- Ensure Days column (days from VSN Date to today) ----
-        if "Days" not in df.columns:
-            df["Days"] = df["VSN Date"].apply(
-                lambda d: (today - d.date()).days if pd.notna(d) else None
-            )
+        # ---- Days = Created date − VSN Date (vehicle age when issue raised) ----
+        if "Days" not in df.columns and "Created date" in df.columns:
+            created = pd.to_datetime(df["Created date"], errors="coerce", dayfirst=True)
+            df["Days"] = (created - df["VSN Date"]).dt.days
 
         # ---- Tag rows ----
         df["Source_Folder"] = folder_name

@@ -54,8 +54,9 @@ MODEL_BUCKETS = ["XUV", "NEW Thar", "Scorpio Classic", "Thar ROXX"]
 
 def compute_vsn_date(vsn):
     """Derive manufacture year+month from Vehicle Sr No.
-    Char[0] = year code, char[2] = month code.
-    e.g. T2B... → 2026-Feb-01
+    char[0] = year code  (R=2024, S=2025, T=2026 …)
+    char[2] = month code (A=Jan, B=Feb, E=May …)
+    e.g. S2E90733 → S=2025, E=May → 2025-05-01
     """
     try:
         vsn = str(vsn).strip().upper()
@@ -228,12 +229,10 @@ def main():
         df[VSN_DATE_COL] = df[VEHICLE_COL].apply(compute_vsn_date)
     df[VSN_DATE_COL] = pd.to_datetime(df[VSN_DATE_COL], errors="coerce")
 
-    # ── Ensure Days column (days from VSN Date to today if absent) ──
+    # ── Ensure Days column = Created date − VSN Date (vehicle age when issue raised) ──
     if DAYS_COL not in df.columns:
-        today_d = date.today()
-        df[DAYS_COL] = df[VSN_DATE_COL].apply(
-            lambda d: (today_d - d.date()).days if pd.notna(d) else None
-        )
+        created_ts = pd.to_datetime(df[DATE_COL], errors="coerce", dayfirst=True)
+        df[DAYS_COL] = (created_ts - df[VSN_DATE_COL]).dt.days
     df[DAYS_COL] = pd.to_numeric(df[DAYS_COL], errors="coerce")
 
     # ── Type detection ──
